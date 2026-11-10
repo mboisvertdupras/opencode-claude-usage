@@ -4,6 +4,10 @@
   "description": "Show your Claude subscription's 5-hour and weekly usage limits in OpenCode",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc.ts"
+  },
   "files": [
     "src",
     "dist"
