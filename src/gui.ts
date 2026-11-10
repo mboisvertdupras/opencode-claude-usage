@@ -6,6 +6,7 @@ import {
   formatPercent,
   formatReset,
   severity,
+  staleError,
   worstSeverity,
   WINDOWS,
   type Severity,
@@ -77,7 +78,7 @@ export default Plugin.define({
               }),
               {
                 id: "updated",
-                label: current.error?.message ?? `Updated ${formatAge(current.fetchedAt, now())}`,
+                label: staleError(current, now())?.message ?? `Updated ${formatAge(current.fetchedAt, now())}`,
                 icon: "refresh",
                 detail: "Refresh",
                 run: refresh,

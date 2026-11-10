@@ -28,6 +28,7 @@ export const Snapshot = Schema.Union([
     status: Schema.Literal("ok"),
     windows: Schema.Array(LimitWindow),
     fetchedAt: Schema.Number,
+    staleAt: Schema.Number,
     error: Schema.optionalKey(UsageError),
   }),
   Schema.Struct({ status: Schema.Literal("unavailable"), error: UsageError, fetchedAt: Schema.Number }),
@@ -47,10 +48,14 @@ export function parseUsage(json: unknown): LimitWindow[] {
   })
 }
 
-export function nextSnapshot(previous: Snapshot, result: FetchResult, now: number): Snapshot {
-  if (result.ok) return { status: "ok", windows: result.windows, fetchedAt: now }
+export function nextSnapshot(previous: Snapshot, result: FetchResult, now: number, staleAfterMs: number): Snapshot {
+  if (result.ok) return { status: "ok", windows: result.windows, fetchedAt: now, staleAt: now + staleAfterMs }
   if (previous.status === "ok") return { ...previous, error: result.error }
   return { status: "unavailable", error: result.error, fetchedAt: now }
+}
+
+export function staleError(snapshot: Extract<Snapshot, { status: "ok" }>, now: number): UsageError | undefined {
+  return now >= snapshot.staleAt ? snapshot.error : undefined
 }
 
 export type Severity = "normal" | "warning" | "danger"

@@ -1,9 +1,15 @@
+import { createHash } from "node:crypto"
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { Plugin } from "@opencode/plugin"
 import { fetchUsage } from "./claude"
 import { ClaudeUsage } from "./rpc"
+import { acquireShared } from "./shared"
 import { nextSnapshot, type Snapshot } from "./usage"
 
-const DEFAULT_INTERVAL_SECONDS = 60
+const DEFAULT_INTERVAL_SECONDS = 120
+const STALE_AFTER_INTERVALS = 2
 const MIN_INTERVAL_SECONDS = 15
 const SESSION_DEBOUNCE_MS = 15_000
 const MAX_BACKOFF_MS = 10 * 60_000
@@ -38,7 +44,7 @@ function startPoller(intervalMs: number): Poller {
     const rateLimited = !result.ok && result.error.reason === "rate-limited"
     delay = rateLimited ? Math.max(Math.min(delay * 2, MAX_BACKOFF_MS), result.retryAfterMs ?? 0) : intervalMs
     schedule(delay)
-    const next = nextSnapshot(snapshot, result, Date.now())
+    const next = nextSnapshot(snapshot, result, Date.now(), intervalMs * STALE_AFTER_INTERVALS)
     if (JSON.stringify(next) !== JSON.stringify(snapshot)) {
       snapshot = next
       for (const listener of listeners) listener(next)
@@ -69,25 +75,17 @@ function startPoller(intervalMs: number): Poller {
   }
 }
 
-// The server evaluates this module once per location, so module state is not shared. The poller
-// lives on globalThis so the endpoint is polled once per process.
-const SHARED = Symbol.for("opencode-claude-usage.poller")
-type Shared = { poller: Poller; users: number }
-const registry = globalThis as { [SHARED]?: Shared }
-
-function acquirePoller(intervalMs: number) {
-  const shared = (registry[SHARED] ??= { poller: startPoller(intervalMs), users: 0 })
-  shared.users++
-  let released = false
-  const release = () => {
-    if (released) return
-    released = true
-    if (--shared.users > 0) return
-    shared.poller.stop()
-    if (registry[SHARED] === shared) delete registry[SHARED]
-  }
-  return { poller: shared.poller, release }
-}
+const SOURCE_DIR = fileURLToPath(new URL(".", import.meta.url))
+const CODE = createHash("sha256")
+  .update(
+    readdirSync(SOURCE_DIR)
+      .filter((name) => /\.tsx?$/.test(name) && !name.includes(".test."))
+      .sort()
+      .map((name) => readFileSync(join(SOURCE_DIR, name), "utf8"))
+      .join("\0"),
+  )
+  .digest("hex")
+const SHARED = Symbol.for(`opencode-claude-usage.poller.${CODE}`)
 
 function intervalMs(options: Readonly<Record<string, unknown>>) {
   const seconds = options.intervalSeconds
@@ -98,7 +96,8 @@ function intervalMs(options: Readonly<Record<string, unknown>>) {
 export default Plugin.define({
   id: "claude-usage",
   async setup(ctx) {
-    const { poller, release } = acquirePoller(intervalMs(ctx.options))
+    const interval = intervalMs(ctx.options)
+    const { value: poller, release } = acquireShared(SHARED, () => startPoller(interval))
     const registration = await ctx.rpc.register(ClaudeUsage, {
       get: () => poller.current(),
       refresh: () => poller.refresh(),
