@@ -34,7 +34,9 @@ export const Snapshot = Schema.Union([
 ])
 export type Snapshot = typeof Snapshot.Type
 
-export type FetchResult = { ok: true; windows: readonly LimitWindow[] } | { ok: false; error: UsageError }
+export type FetchResult =
+  | { ok: true; windows: readonly LimitWindow[] }
+  | { ok: false; error: UsageError; retryAfterMs?: number }
 
 export function parseUsage(json: unknown): LimitWindow[] {
   if (!isRecord(json)) return []

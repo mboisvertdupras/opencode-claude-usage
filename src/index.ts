@@ -36,7 +36,7 @@ function startPoller(intervalMs: number): Poller {
     lastStarted = Date.now()
     const result = await fetchUsage(controller.signal)
     const rateLimited = !result.ok && result.error.reason === "rate-limited"
-    delay = rateLimited ? Math.min(delay * 2, MAX_BACKOFF_MS) : intervalMs
+    delay = rateLimited ? Math.max(Math.min(delay * 2, MAX_BACKOFF_MS), result.retryAfterMs ?? 0) : intervalMs
     schedule(delay)
     const next = nextSnapshot(snapshot, result, Date.now())
     if (JSON.stringify(next) !== JSON.stringify(snapshot)) {

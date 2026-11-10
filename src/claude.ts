@@ -28,7 +28,8 @@ export async function fetchUsage(signal: AbortSignal): Promise<FetchResult> {
 
   if (response.status === 401 || response.status === 403)
     return fail("unauthorized", `Claude rejected the token (HTTP ${response.status})`)
-  if (response.status === 429) return fail("rate-limited", "Rate limited by the usage endpoint")
+  if (response.status === 429)
+    return { ...fail("rate-limited", "Rate limited by the usage endpoint"), retryAfterMs: retryAfterMs(response) }
   if (!response.ok) return fail("http", `Usage endpoint returned HTTP ${response.status}`)
 
   try {
@@ -71,6 +72,11 @@ async function readCredentialsFile(): Promise<string | undefined> {
   }
 }
 
-function fail(reason: UsageError["reason"], message: string): FetchResult {
-  return { ok: false, error: { reason, message } }
+function retryAfterMs(response: Response): number | undefined {
+  const seconds = Number(response.headers.get("retry-after"))
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined
+}
+
+function fail(reason: UsageError["reason"], message: string) {
+  return { ok: false as const, error: { reason, message } }
 }
