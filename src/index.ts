@@ -70,7 +70,7 @@ function startPoller(intervalMs: number): Poller {
 }
 
 // The server evaluates this module once per location, so module state is not shared. The poller
-// lives on globalThis so the endpoint is polled once per process; the last instance stops it.
+// lives on globalThis so the endpoint is polled once per process.
 const SHARED = Symbol.for("opencode-claude-usage.poller")
 type Shared = { poller: Poller; users: number }
 const registry = globalThis as { [SHARED]?: Shared }

@@ -52,8 +52,8 @@ refreshes it. The token is only sent to `api.anthropic.com` and is never logged 
 ## Caveats
 
 The numbers come from `GET https://api.anthropic.com/api/oauth/usage`. The endpoint is
-undocumented and may change or disappear without notice. It also rate-limits per account, so other tools polling it with
-the same login share the budget.
+undocumented and may change or disappear without notice. It also rate-limits aggressively. Other tools that poll it with
+the same login likely draw on the same limit, so expect an occasional `stale: rate-limited` marker.
 
 ## Development
 
