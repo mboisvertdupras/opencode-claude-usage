@@ -31,14 +31,17 @@ bun run build
 
 ```jsonc
 {
-  "plugins": [{ "package": "/path/to/opencode-claude-usage", "options": { "intervalSeconds": 120 } }],
+  "plugins": [{ "package": "/path/to/opencode-claude-usage", "options": { "intervalSeconds": 300 } }],
 }
 ```
 
-- `intervalSeconds` sets how often the server polls. Default 60, minimum 15.
+- `intervalSeconds` sets how often the server polls. Default 120, minimum 15.
 
 The server also refreshes when a session finishes, at most once every 15 seconds. A 429 from the endpoint doubles
 the interval, up to 10 minutes, and waits at least as long as its `Retry-After` header.
+
+A failed refresh keeps the last numbers. They get a `stale` marker only once they are older than two intervals, so a
+single missed poll doesn't flag numbers that are still fresh.
 
 ## Credentials
 
@@ -53,7 +56,7 @@ refreshes it. The token is only sent to `api.anthropic.com` and is never logged 
 
 The numbers come from `GET https://api.anthropic.com/api/oauth/usage`. The endpoint is
 undocumented and may change or disappear without notice. It also rate-limits aggressively. Other tools that poll it with
-the same login likely draw on the same limit, so expect an occasional `stale: rate-limited` marker.
+the same login likely draw on the same limit, so a long run of 429s shows as `stale: rate-limited`.
 
 ## Development
 

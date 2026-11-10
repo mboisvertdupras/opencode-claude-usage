@@ -3,7 +3,7 @@ import { Plugin } from "@opencode/plugin/tui"
 import type { Context } from "@opencode/plugin/tui/context"
 import { createSignal, Show } from "solid-js"
 import { ClaudeUsage } from "./rpc"
-import { bar, formatPercent, formatReset, severity, WINDOWS, type Severity, type Snapshot } from "./usage"
+import { bar, formatPercent, formatReset, severity, staleError, WINDOWS, type Severity, type Snapshot } from "./usage"
 
 const BAR_WIDTH = 10
 const CLOCK_MS = 30_000
@@ -43,7 +43,8 @@ export default Plugin.define({
           return null
         case "unavailable":
           return <span style={{ fg: theme.text.muted }}>Claude usage: {current.error.reason}</span>
-        case "ok":
+        case "ok": {
+          const stale = staleError(current, now())
           return [
             ...current.windows.flatMap((window, index) => {
               const tone = TONE[severity(window.percent)](theme)
@@ -59,8 +60,9 @@ export default Plugin.define({
                 reset && <span style={{ fg: theme.text.muted }}> ({reset} / {info.short})</span>,
               ]
             }),
-            current.error && <span style={{ fg: theme.text.faint }}> · stale: {current.error.reason}</span>,
+            stale && <span style={{ fg: theme.text.faint }}> · stale: {stale.reason}</span>,
           ]
+        }
         default:
           return current satisfies never
       }

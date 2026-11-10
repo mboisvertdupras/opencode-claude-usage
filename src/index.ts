@@ -3,7 +3,8 @@ import { fetchUsage } from "./claude"
 import { ClaudeUsage } from "./rpc"
 import { nextSnapshot, type Snapshot } from "./usage"
 
-const DEFAULT_INTERVAL_SECONDS = 60
+const DEFAULT_INTERVAL_SECONDS = 120
+const STALE_AFTER_INTERVALS = 2
 const MIN_INTERVAL_SECONDS = 15
 const SESSION_DEBOUNCE_MS = 15_000
 const MAX_BACKOFF_MS = 10 * 60_000
@@ -38,7 +39,7 @@ function startPoller(intervalMs: number): Poller {
     const rateLimited = !result.ok && result.error.reason === "rate-limited"
     delay = rateLimited ? Math.max(Math.min(delay * 2, MAX_BACKOFF_MS), result.retryAfterMs ?? 0) : intervalMs
     schedule(delay)
-    const next = nextSnapshot(snapshot, result, Date.now())
+    const next = nextSnapshot(snapshot, result, Date.now(), intervalMs * STALE_AFTER_INTERVALS)
     if (JSON.stringify(next) !== JSON.stringify(snapshot)) {
       snapshot = next
       for (const listener of listeners) listener(next)
