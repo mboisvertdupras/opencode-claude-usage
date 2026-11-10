@@ -2,6 +2,18 @@
   "name": "opencode-claude-usage",
   "version": "0.1.0",
   "description": "Show your Claude subscription's 5-hour and weekly usage limits in OpenCode",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mboisvertdupras/opencode-claude-usage.git"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "claude",
+    "usage",
+    "rate-limits"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
