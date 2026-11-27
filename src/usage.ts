@@ -35,6 +35,9 @@ export const Snapshot = Schema.Union([
 ])
 export type Snapshot = typeof Snapshot.Type
 
+export const Saved = Schema.Struct({ snapshot: Snapshot, delay: Schema.Number, lastStarted: Schema.Number })
+export type Saved = typeof Saved.Type
+
 export type FetchResult =
   | { ok: true; windows: readonly LimitWindow[] }
   | { ok: false; error: UsageError; retryAfterMs?: number }

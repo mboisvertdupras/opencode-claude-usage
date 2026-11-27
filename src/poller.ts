@@ -1,5 +1,8 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { dirname } from "node:path"
+import { Option, Schema } from "effect"
 import { fetchUsage } from "./claude"
-import { nextSnapshot, type Snapshot } from "./usage"
+import { nextSnapshot, Saved, type Snapshot } from "./usage"
 
 const STALE_AFTER_INTERVALS = 2
 const SESSION_DEBOUNCE_MS = 15_000
@@ -15,10 +18,30 @@ export type Poller = {
   stop(): void
 }
 
-export function startPoller(intervalMs: number): Poller {
-  let snapshot: Snapshot = { status: "loading" }
-  let delay = intervalMs
-  let lastStarted = 0
+const decodeSaved = Schema.decodeUnknownOption(Saved)
+
+function load(cacheFile: string): Saved | undefined {
+  try {
+    return Option.getOrUndefined(decodeSaved(JSON.parse(readFileSync(cacheFile, "utf8"))))
+  } catch {
+    return undefined
+  }
+}
+
+function save(cacheFile: string, saved: Saved) {
+  try {
+    mkdirSync(dirname(cacheFile), { recursive: true })
+    const tmp = `${cacheFile}.${process.pid}.tmp`
+    writeFileSync(tmp, JSON.stringify(saved))
+    renameSync(tmp, cacheFile)
+  } catch {}
+}
+
+export function startPoller(intervalMs: number, cacheFile: string): Poller {
+  const saved = load(cacheFile)
+  let snapshot: Snapshot = saved?.snapshot ?? { status: "loading" }
+  let delay = Math.max(saved?.delay ?? 0, intervalMs)
+  let lastStarted = saved?.lastStarted ?? 0
   let inflight: Promise<Snapshot> | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   const listeners = new Set<Listener>()
@@ -40,12 +63,13 @@ export function startPoller(intervalMs: number): Poller {
       snapshot = next
       for (const listener of listeners) listener(next)
     }
+    if (!controller.signal.aborted) save(cacheFile, { snapshot, delay, lastStarted })
     return snapshot
   }
 
   const refresh = () => (inflight ??= run().finally(() => (inflight = undefined)))
 
-  void refresh()
+  schedule(Math.max(0, lastStarted + delay - Date.now()))
 
   return {
     current: async () => (snapshot.status === "loading" ? refresh() : snapshot),

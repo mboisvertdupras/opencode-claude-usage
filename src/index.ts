@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 import { readdirSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Plugin } from "@opencode/plugin"
@@ -9,6 +10,7 @@ import { acquireShared } from "./shared"
 
 const DEFAULT_INTERVAL_SECONDS = 120
 const MIN_INTERVAL_SECONDS = 15
+const CACHE_FILE = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "opencode-claude-usage", "poller.json")
 
 const SOURCE_DIR = fileURLToPath(new URL(".", import.meta.url))
 const CODE = createHash("sha256")
@@ -32,7 +34,7 @@ export default Plugin.define({
   id: "claude-usage",
   async setup(ctx) {
     const interval = intervalMs(ctx.options)
-    const { value: poller, release } = acquireShared(SHARED, () => startPoller(interval))
+    const { value: poller, release } = acquireShared(SHARED, () => startPoller(interval, CACHE_FILE))
     const registration = await ctx.rpc.register(ClaudeUsage, {
       get: () => poller.current(),
       refresh: () => poller.refresh(),

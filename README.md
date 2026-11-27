@@ -43,6 +43,11 @@ the interval, up to 10 minutes, and waits at least as long as its `Retry-After` 
 A failed refresh keeps the last numbers. They get a `stale` marker only once they are older than two intervals, so a
 single missed poll doesn't flag numbers that are still fresh.
 
+The plugin saves its last numbers, its backoff, and its next poll time in
+`$XDG_CACHE_HOME/opencode-claude-usage/poller.json` (default `~/.cache`). OpenCode unloads the plugin about once an
+hour and on every restart. The next load reads that file, so it shows the saved numbers and waits for the saved poll
+time.
+
 ## Credentials
 
 The plugin reuses Claude Code's login. On macOS it reads the `Claude Code-credentials` keychain item. Elsewhere it reads
